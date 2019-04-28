@@ -1,30 +1,19 @@
+# -*-coding:utf-8 -*
+
 import unittest
 import json
 import re
+import sys
 
+# ouverture du dico
 
-def get_json():
+def dico():
     with open('convertion.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-# cas de spéparation (soixante-dix,...)
+# convertion nombre arabe
 
-def decoupe(nombre):
-    words = []
-    word = ""
-    for i, lettre in enumerate(nombre):
-        if lettre == " " or lettre == "-":
-            words.append(word)
-            word = ""
-        else:
-            word += lettre
-        if i+1 == len(nombre):
-            words.append(word)
-    return words
-
-# convertion
-
-def convert_words_nombre(words):
+def mots_nombre(words):
     nombre = []
     a = 0
     for word in words:
@@ -49,17 +38,9 @@ def convert_words_nombre(words):
             return word
     return nombre
 
-# convertion cas spéciaux romain (80,...)
+# séparation des nombres (ex : 1000 = 1 000)
 
-def cas_special(f, s):
-    if s == 20:
-        return f*s
-    else:
-        return f+s
-
-# 
-
-def separe(nombre):
+def espace(nombre):
     tab = []
     result = []
     j = 0
@@ -74,36 +55,33 @@ def separe(nombre):
     result.append(tab)
     return result
 
+# cas de séparation (ex : 70 = soixante-dix)
 
-def convert_total(nombres):
-    end = 0
+def separation(nombre):
+    words = []
+    word = ""
+    for i, lettre in enumerate(nombre):
+        if lettre == " " or lettre == "-":
+            words.append(word)
+            word = ""
+        else:
+            word += lettre
+        if i+1 == len(nombre):
+            words.append(word)
+    return words
+
+# convertion chiffre romain
+
+def chiffre_romain(nombre):
     result = 0
-    for tab in nombres:
-        try:
-            while len(tab) > 0:
-                first = tab.pop(0)
-                sec = tab.pop(0)
-                try:
-                    n = tab.pop(0)
-                    if n == 20:
-                        sec *= n
-                    else:
-                        tab.insert(0, n)
-                except:
-                    pass
-                if len(str(first)) > 2 and len(str(sec)) < 3:
-                    result = first + sec
-                elif len(str(sec)) > 2:
-                    result = first * sec
-                else:
-                    result = cas_special(first, sec)
-                tab.insert(0, result)
-        except:
-            end += first
-    return end
+    d = data['romain-arabe']
+    for i in range(len(d)):
+        result += nombre.count(d[i]['autochtone']) * d[i]['arabe']
+    return result
 
+# séparation chiffre romain
 
-def formate(nombre):
+def pouet(nombre):
     str_nb = str(nombre)[::-1]
     nb = ""
     for i in range(len(str_nb)):
@@ -112,37 +90,43 @@ def formate(nombre):
             nb += " "
     return nb[::-1]
 
+# covertion total
 
-def romain(nombre):
+def total(nombres):
+    end = 0
     result = 0
-    d = data['romain-arabe']
-    for i in range(len(d)):
-        result += nombre.count(d[i]['autochtone']) * d[i]['arabe']
-    return result
+    for tab in nombres:
+        try:
+            while len(tab) > 0:
+                first = tab.pop(0)
+                sec = tab.pop(0)
+        except:
+            end += first
+    return end
 
-
-def check_lg(text):
+def truc(text):
     try:
         if len(re.findall(r'^[MDCLXVI]*$', text)[0]):
             return 0
     except:
         return 1
 
+# base
 
 def main(text):
-    if check_lg(text):
-        a = decoupe(text)
-        b = convert_words_nombre(a)
+    if truc(text):
+        a = separation(text)
+        b = mots_nombre(a)
         if type(b) is str:
             print(
-                "Erreur de frappe : '{}' n'est pas compris, veuillez réécrire votre nombre".format(b))
+                "Hein ?! Mais '{}' ça veut rien dire, enfin en tout cas moi je ne sais pas le lire".format(b))
             return 'Error'
         else:
-            c = separe(b)
-            end = convert_total(c)
+            c = espace(b)
+            end = total(c)
     else:
-        end = romain(text)
-    format_end = formate(end)
+        end = chiffre_romain(text)
+    format_end = pouet(end)
     print("{} = {}".format(text, format_end))
     return format_end
 
@@ -151,89 +135,28 @@ class TestNombre(unittest.TestCase):
 
     def test_1(self):
         self.assertIn(main(
-            "huit milliard trois cent million neuf cent quatre vingt douze mille trois cent trois"), ' 8 300 992 303')
+            "IV"), "4")
 
     def test_2(self):
         self.assertIn(
-            main("quatre Cents Cinquante trois mille neuf cent septante neuf"), " 453 979")
+            main("six cents soixante six"), "666")
 
     def test_3(self):
-        self.assertIn(main("deux mille sept cent neuf"), " 2 709")
+        self.assertIn(main("iubdjcv"), "Error")
 
     def test_4(self):
         self.assertIn(main(
-            "sept cent sept million sept cent soixante dix sept mille sept"), " 707 777 007")
+            "un Million Trois cents"), "1 000 300")
 
     def test_5(self):
-        self.assertIn(main("Trois mille deux cent un"), " 3 201")
+        self.assertIn(main("MDCLXVI"), "1 666")
 
-    def test_6(self):
-        self.assertIn(main("mil quatre cent"), " 1 400")
-
-    def test_7(self):
-        self.assertIn(
-            main("quatre-vingt-douze milles huit cent deux"), " 92 802")
-
-    def test_8(self):
-        self.assertIn(main(
-            "neuf milliards cinq cent soixante et onze millions neuf cent quatre milles vingt trois"), " 9 571 904 023")
-
-    def test_9(self):
-        self.assertIn(
-            main("Mille deux cent nonante sept"), " 1 297")
-
-    def test_10(self):
-        self.assertIn(
-            main("MMMMCMLVII"), " 4 957")
-
-    def test_11(self):
-        self.assertIn(
-            main("sept-cent-mille-trois-cent-vingt-et-un"), " 700 321")
-
-    def test_12(self):
-        self.assertIn(
-            main("trente-deux millions deux-cent-vingt-trois"), " 32 000 223")
-
-    def test_13(self):
-        self.assertIn(
-            main("mil neuf cents"), " 1 900")
-
-    def test_14(self):
-        self.assertIn(
-            main("quatre-vingt-dix-neuf billions neuf cent quatre-vingt-dix-neuf milliards neuf cent quatre-vingt-dix-neuf millions neuf cent quatre-vingt-dix-neuf mille neuf cent quatre-vingt-dix-neuf"), " 99 999 999 999 999")
-
-    def test_15(self):
-        self.assertIn(
-            main("sept cent soixante-dix-sept billions sept cent soixante-dix-sept milliards sept cent soixante-dix-sept millions sept cent soixante-dix-sept mille sept cent soixante-dix-sept"), " 777 777 777 777 777")
-
-    def test_16(self):
-        self.assertIn(
-            main("six cent soixante-six billions six cent soixante-six milliards six cent soixante-six millions six cent soixante-six mille six cent soixante-six"), " 666 666 666 666 666")
-
-    def test_17(self):
-        self.assertIn(
-            main("trois cent trente-trois billions trois cent trente-trois milliards trois cent trente-trois millions trois cent trente-trois mille trois cent trente-trois"), " 333 333 333 333 333")
-
-    def test_18(self):
-        self.assertIn(
-            main("cent onze billions cent onze milliards cent onze millions cent onze mille cent onze"), " 111 111 111 111 111")
-
-    def test_19(self):
-        self.assertIn(
-            main("cent vingt-trois millions quatre cent cinquante-six mille sept cent quatre-vingt-neuf"), " 123 456 789")
-
-    def test_20(self):
-        self.assertIn(
-            main("qutre"), "Error")
-
+# texte entrée et erreurx
 
 if __name__ == '__main__':
-    data = get_json()
+    data = dico()
 
-    text_input = input('Insérez un nombre écrit en toutes lettres :')
+    text_input = input('Quel nombre ou chiffre romain souhaitez vous convertir :')
     m = main(text_input)
     while m == "Error":
-        m = main(input('Insérez un nombre écrit en toutes lettres :'))
-
-    # Test
-    # unittest.main()
+        m = main(input('Veuillez en essayer un autre :'))
